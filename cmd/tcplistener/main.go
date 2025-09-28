@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +23,7 @@ func main() {
 			newConn.Close()
 			continue
 		}
+
 		go func() {
 			defer newConn.Close()
 			fmt.Println("new connection is accepted")
@@ -40,10 +42,13 @@ func getLinesChannel(f io.ReadCloser) <-chan string {
 		line := ""
 		defer close(out)
 		for {
-
 			data := make([]byte, 8)
+
 			n, err := f.Read(data)
 			if err != nil {
+				if errors.Is(err, io.EOF) && len(line) > 0 {
+					out <- line
+				}
 				break
 			}
 			data = data[:n]
