@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"httpfromtcp/kaviraj-j/internal/request"
 	"io"
 	"log"
 	"net"
@@ -27,11 +28,8 @@ func main() {
 		go func() {
 			defer newConn.Close()
 			fmt.Println("new connection is accepted")
-			linesChan := getLinesChannel(newConn)
-			for l := range linesChan {
-				fmt.Println(l)
-			}
-			fmt.Println("connection is closed")
+			r, _ := request.RequestFromReader(newConn)
+			fmt.Printf("Method: %s\nHttp Version: %s\nEndpoint: %s\n", r.RequestLine.Method, r.RequestLine.HttpVersion, r.RequestLine.RequestTarget)
 		}()
 	}
 }
