@@ -3,6 +3,7 @@ package headers
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -59,7 +60,13 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	}
 	val := strings.TrimSpace(trimmed[colonIdx+1:])
 	keyInLowerCase := strings.ToLower(key)
-	h[keyInLowerCase] = val
+
+	existingValues, ok := h[keyInLowerCase]
+	if ok {
+		h[keyInLowerCase] = fmt.Sprintf("%s, %s", existingValues, val)
+	} else {
+		h[keyInLowerCase] = val
+	}
 
 	// consumed line + CRLF
 	return idx + len(crlf), false, nil

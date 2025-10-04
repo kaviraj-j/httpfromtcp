@@ -29,7 +29,13 @@ func main() {
 			defer newConn.Close()
 			fmt.Println("new connection is accepted")
 			r, _ := request.RequestFromReader(newConn)
+			fmt.Println("Request created")
 			fmt.Printf("Method: %s\nHttp Version: %s\nEndpoint: %s\n", r.RequestLine.Method, r.RequestLine.HttpVersion, r.RequestLine.RequestTarget)
+			// print headers
+			fmt.Println("Headers")
+			for k, v := range r.RequestHeaders {
+				fmt.Printf("%s: %s\n", k, v)
+			}
 		}()
 	}
 }

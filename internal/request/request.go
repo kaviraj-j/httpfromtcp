@@ -3,12 +3,15 @@ package request
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"httpfromtcp/kaviraj-j/internal/headers"
 	"io"
 )
 
 type Request struct {
-	RequestLine RequestLine
-	state       parserState
+	RequestLine    RequestLine
+	RequestHeaders headers.Headers
+	state          parserState
 }
 
 type RequestLine struct {
@@ -24,8 +27,9 @@ const (
 type parserState string
 
 const (
-	StateInit parserState = "init"
-	StateDone parserState = "done"
+	StateInit           parserState = "init"
+	StateParsingHeaders parserState = "parsing-headers"
+	StateDone           parserState = "done"
 )
 
 // errors
@@ -36,7 +40,8 @@ var ErrUnknownState = errors.New("unknown state")
 
 func newRequest() *Request {
 	return &Request{
-		state: StateInit,
+		state:          StateInit,
+		RequestHeaders: headers.NewHeaders(),
 	}
 }
 
@@ -46,6 +51,8 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	bufferLen := 0
 	for !request.done() {
 		n, err := reader.Read(buffer[bufferLen:])
+		dataStr := string(buffer)
+		fmt.Println(dataStr)
 		if err != nil {
 			if errors.Is(err, io.EOF) && request.done() {
 				return request, nil
@@ -67,23 +74,40 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 }
 
 func (request *Request) parse(data []byte) (int, error) {
-	switch request.state {
-	case StateInit:
-		// parse the line
-		requestLine, consumed, err := parseRequestLine(data)
-		if err != nil {
-			return 0, err
+	read := 0
+	for {
+		switch request.state {
+		case StateInit:
+			// parse the line
+			requestLine, consumed, err := parseRequestLine(data[read:])
+			if err != nil {
+				return 0, err
+			}
+			if consumed == 0 {
+				return 0, nil
+			}
+			request.RequestLine = *requestLine
+			request.state = StateParsingHeaders
+			read += consumed
+		case StateParsingHeaders:
+			// parse the headers
+			consumed, done, err := request.RequestHeaders.Parse(data[read:])
+			if err != nil {
+				return 0, err
+			}
+			if consumed == 0 {
+				return 0, nil
+			}
+			if done {
+				request.state = StateDone
+				return consumed, nil
+			}
+			read += consumed
+		case StateDone:
+			return 0, ErrReadingDataInDoneState
+		default:
+			return 0, ErrUnknownState
 		}
-		if consumed == 0 {
-			return 0, nil
-		}
-		request.RequestLine = *requestLine
-		request.state = StateDone
-		return consumed, nil
-	case StateDone:
-		return 0, ErrReadingDataInDoneState
-	default:
-		return 0, ErrUnknownState
 	}
 }
 
