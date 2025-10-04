@@ -3,14 +3,15 @@ package request
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"httpfromtcp/kaviraj-j/internal/headers"
 	"io"
+	"strconv"
 )
 
 type Request struct {
 	RequestLine    RequestLine
 	RequestHeaders headers.Headers
+	Body           []byte
 	state          parserState
 }
 
@@ -29,12 +30,14 @@ type parserState string
 const (
 	StateInit           parserState = "init"
 	StateParsingHeaders parserState = "parsing-headers"
+	StateParsingBody    parserState = "parsing-body"
 	StateDone           parserState = "done"
 )
 
 // errors
 var ErrInvalidRequestData = errors.New("invalid request data")
 var ErrInvalidRequestLine = errors.New("invalid request line")
+var ErrContentMoreThanMentioned = errors.New("body length is more than mentioned in Content-Length")
 var ErrReadingDataInDoneState = errors.New("reading request data in done state")
 var ErrUnknownState = errors.New("unknown state")
 
@@ -51,8 +54,6 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 	bufferLen := 0
 	for !request.done() {
 		n, err := reader.Read(buffer[bufferLen:])
-		dataStr := string(buffer)
-		fmt.Println(dataStr)
 		if err != nil {
 			if errors.Is(err, io.EOF) && request.done() {
 				return request, nil
@@ -80,11 +81,8 @@ func (request *Request) parse(data []byte) (int, error) {
 		case StateInit:
 			// parse the line
 			requestLine, consumed, err := parseRequestLine(data[read:])
-			if err != nil {
+			if err != nil || consumed == 0 {
 				return 0, err
-			}
-			if consumed == 0 {
-				return 0, nil
 			}
 			request.RequestLine = *requestLine
 			request.state = StateParsingHeaders
@@ -92,17 +90,32 @@ func (request *Request) parse(data []byte) (int, error) {
 		case StateParsingHeaders:
 			// parse the headers
 			consumed, done, err := request.RequestHeaders.Parse(data[read:])
-			if err != nil {
+			if err != nil || consumed == 0 {
 				return 0, err
 			}
-			if consumed == 0 {
-				return 0, nil
-			}
 			if done {
-				request.state = StateDone
-				return consumed, nil
+				request.state = StateParsingBody
 			}
 			read += consumed
+		case StateParsingBody:
+			contentLen := request.RequestHeaders.Get("Content-Length")
+			if len(contentLen) == 0 {
+				// no body
+				request.state = StateDone
+				return 0, nil
+			}
+			bodyLen, err := strconv.Atoi(contentLen)
+			if err != nil {
+				return 0, errors.New("error while parsing content length")
+			}
+			remaining := bodyLen - len(request.Body)
+			consume := min(remaining, len(data[read:]))
+			request.Body = append(request.Body, data[read:consume+read]...)
+			if len(request.Body) >= bodyLen {
+				request.state = StateDone
+			}
+			read += consume
+			return read, nil
 		case StateDone:
 			return 0, ErrReadingDataInDoneState
 		default:

@@ -72,6 +72,11 @@ func (h Headers) Parse(data []byte) (n int, done bool, err error) {
 	return idx + len(crlf), false, nil
 }
 
+func (h Headers) Get(key string) string {
+	key = strings.ToLower(key)
+	return h[key]
+}
+
 func isValidHeaderKey(headerKey string) bool {
 	return headerKeyRegex.MatchString(headerKey)
 }
