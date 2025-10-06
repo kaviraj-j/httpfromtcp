@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"httpfromtcp/kaviraj-j/internal/response"
 	"net"
 	"sync/atomic"
 )
@@ -50,13 +51,16 @@ func (s *Server) Close() error {
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
 
-	response := "HTTP/1.1 200 OK\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"Content-Length: 13\r\n" +
-		"\r\n" +
-		"Hello, world!"
+	// body := "Hello, world!"
 
-	_, err := conn.Write([]byte(response))
+	// _, err := conn.Write([]byte(response))
+
+	err := response.WriteStatusLine(conn, 200)
+	if err != nil {
+		fmt.Println("write error:", err)
+	}
+	h := response.GetDefaultHeaders(0)
+	err = response.WriteHeaders(conn, h)
 	if err != nil {
 		fmt.Println("write error:", err)
 	}
