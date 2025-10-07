@@ -1,7 +1,10 @@
 package main
 
 import (
+	"httpfromtcp/kaviraj-j/internal/request"
+	"httpfromtcp/kaviraj-j/internal/response"
 	"httpfromtcp/kaviraj-j/internal/server"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -10,8 +13,24 @@ import (
 
 const port = 42069
 
+func Handler(w io.Writer, req *request.Request) *server.HandlerError {
+	switch req.RequestLine.RequestTarget {
+	case "/bad_request":
+		return &server.HandlerError{
+			StatusCode: response.StatusBadRequest,
+			Message:    "you fucked up something",
+		}
+	case "/server_error":
+		return &server.HandlerError{
+			StatusCode: response.StatusInternalServerError,
+			Message:    "oops i'm sorry",
+		}
+	default:
+		return nil
+	}
+}
 func main() {
-	server, err := server.Serve(port)
+	server, err := server.Serve(port, Handler)
 	if err != nil {
 		log.Fatalf("Error starting server: %v", err)
 	}

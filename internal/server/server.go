@@ -1,7 +1,9 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
+	"httpfromtcp/kaviraj-j/internal/request"
 	"httpfromtcp/kaviraj-j/internal/response"
 	"net"
 	"sync/atomic"
@@ -9,10 +11,11 @@ import (
 
 type Server struct {
 	listener net.Listener
+	handler  Handler
 	closed   atomic.Bool
 }
 
-func Serve(port int) (*Server, error) {
+func Serve(port int, handler Handler) (*Server, error) {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -20,9 +23,10 @@ func Serve(port int) (*Server, error) {
 	}
 	server := &Server{
 		listener: listener,
+		handler:  handler,
 	}
 	go server.listen()
-	return server, err
+	return server, nil
 }
 
 func (s *Server) listen() {
@@ -50,18 +54,24 @@ func (s *Server) Close() error {
 
 func (s *Server) handle(conn net.Conn) {
 	defer conn.Close()
-
-	// body := "Hello, world!"
-
-	// _, err := conn.Write([]byte(response))
-
-	err := response.WriteStatusLine(conn, 200)
+	req, err := request.RequestFromReader(conn)
 	if err != nil {
-		fmt.Println("write error:", err)
+		hErr := &HandlerError{
+			StatusCode: response.StatusBadRequest,
+			Message:    err.Error(),
+		}
+		hErr.Write(conn)
+		return
 	}
-	h := response.GetDefaultHeaders(0)
-	err = response.WriteHeaders(conn, h)
-	if err != nil {
-		fmt.Println("write error:", err)
+	buf := bytes.NewBuffer([]byte{})
+	hErr := s.handler(buf, req)
+	if hErr != nil {
+		hErr.Write(conn)
+		return
 	}
+	b := buf.Bytes()
+	response.WriteStatusLine(conn, response.StatusOk)
+	headers := response.GetDefaultHeaders(len(b))
+	response.WriteHeaders(conn, headers)
+	conn.Write(b)
 }
