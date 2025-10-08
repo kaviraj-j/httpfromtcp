@@ -16,7 +16,6 @@ import (
 const port = 42069
 
 func Handler(w *response.Writer, req *request.Request) {
-	fmt.Println(req.RequestLine.RequestTarget)
 	if req.RequestLine.RequestTarget == "/bad_request" {
 		body := "you fucked up"
 		w.WriteStatusLine(400)
@@ -56,6 +55,13 @@ func Handler(w *response.Writer, req *request.Request) {
 			w.WriteBody(data[:n])
 			w.WriteBody([]byte("\r\n"))
 		}
+	} else if req.RequestLine.RequestTarget == "/video" {
+		fileData, _ := os.ReadFile("./assets/earth.mp4")
+		h := response.GetDefaultHeaders(len(fileData))
+		h.OverrideValue("Content-Type", "video/mp4")
+		w.WriteStatusLine(response.StatusOk)
+		w.WriteHeaders(h)
+		w.WriteBody(fileData)
 	} else {
 		body := "Status OK"
 		w.WriteStatusLine(200)
