@@ -81,6 +81,10 @@ func (h Headers) OverrideValue(key string, value string) {
 	h[key] = value
 }
 
+func (h Headers) Delete(key string) {
+	delete(h, key)
+}
+
 func isValidHeaderKey(headerKey string) bool {
 	return headerKeyRegex.MatchString(headerKey)
 }
