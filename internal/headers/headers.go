@@ -77,6 +77,10 @@ func (h Headers) Get(key string) string {
 	return h[key]
 }
 
+func (h Headers) OverrideValue(key string, value string) {
+	h[key] = value
+}
+
 func isValidHeaderKey(headerKey string) bool {
 	return headerKeyRegex.MatchString(headerKey)
 }

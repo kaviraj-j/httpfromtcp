@@ -11,7 +11,7 @@ type HandlerError struct {
 	Message    string
 }
 
-type Handler func(w io.Writer, req *request.Request) *HandlerError
+type Handler func(w *response.Writer, req *request.Request)
 
 func (hErr *HandlerError) Write(w io.Writer) error {
 	response.WriteStatusLine(w, hErr.StatusCode)

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"fmt"
 	"httpfromtcp/kaviraj-j/internal/request"
 	"httpfromtcp/kaviraj-j/internal/response"
@@ -63,15 +62,7 @@ func (s *Server) handle(conn net.Conn) {
 		hErr.Write(conn)
 		return
 	}
-	buf := bytes.NewBuffer([]byte{})
-	hErr := s.handler(buf, req)
-	if hErr != nil {
-		hErr.Write(conn)
-		return
-	}
-	b := buf.Bytes()
-	response.WriteStatusLine(conn, response.StatusOk)
-	headers := response.GetDefaultHeaders(len(b))
-	response.WriteHeaders(conn, headers)
-	conn.Write(b)
+	writer := response.NewWriter(conn)
+	s.handler(writer, req)
+
 }

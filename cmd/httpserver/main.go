@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"httpfromtcp/kaviraj-j/internal/request"
 	"httpfromtcp/kaviraj-j/internal/response"
 	"httpfromtcp/kaviraj-j/internal/server"
-	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -13,20 +13,30 @@ import (
 
 const port = 42069
 
-func Handler(w io.Writer, req *request.Request) *server.HandlerError {
+func Handler(w *response.Writer, req *request.Request) {
+	fmt.Println(req.RequestLine.RequestTarget)
 	switch req.RequestLine.RequestTarget {
 	case "/bad_request":
-		return &server.HandlerError{
-			StatusCode: response.StatusBadRequest,
-			Message:    "you fucked up something",
-		}
+		body := "you fucked up"
+		w.WriteStatusLine(400)
+		h := response.GetDefaultHeaders(len(body))
+		h.OverrideValue("Key", "MyVal")
+		w.WriteHeaders(h)
+		w.WriteBody([]byte(body))
 	case "/server_error":
-		return &server.HandlerError{
-			StatusCode: response.StatusInternalServerError,
-			Message:    "oops i'm sorry",
-		}
+		body := "sorry my bad"
+		w.WriteStatusLine(500)
+		h := response.GetDefaultHeaders(len(body))
+		h.OverrideValue("Key", "MyVal")
+		w.WriteHeaders(h)
+		w.WriteBody([]byte(body))
 	default:
-		return nil
+		body := "Status OK"
+		w.WriteStatusLine(200)
+		h := response.GetDefaultHeaders(len(body))
+		h.OverrideValue("Key", "MyVal")
+		w.WriteHeaders(h)
+		w.WriteBody([]byte(body))
 	}
 }
 func main() {
